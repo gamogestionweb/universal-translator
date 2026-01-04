@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Traductor Universal</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 360px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #fff;
+      padding: 20px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .header h1 {
+      font-size: 20px;
+      margin-bottom: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .header p {
+      font-size: 12px;
+      opacity: 0.7;
+    }
+
+    .section {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #00b894;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px;
+      background: rgba(0, 184, 148, 0.2);
+      border-radius: 8px;
+      margin-bottom: 15px;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #00ff88;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .how-it-works {
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .how-it-works h3 {
+      color: #00b894;
+      margin: 12px 0 8px 0;
+      font-size: 13px;
+    }
+
+    .how-it-works h3:first-child {
+      margin-top: 0;
+    }
+
+    .how-it-works p {
+      margin-bottom: 8px;
+      opacity: 0.9;
+    }
+
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .step-num {
+      background: #00b894;
+      color: white;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+
+    .step-text {
+      flex: 1;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .input-row {
+      margin-bottom: 12px;
+    }
+
+    .input-row label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+
+    .input-row input {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 2px solid transparent;
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+      font-size: 13px;
+      font-family: monospace;
+      transition: border-color 0.2s;
+    }
+
+    .input-row input:focus {
+      outline: none;
+      border-color: #00b894;
+    }
+
+    .input-row input::placeholder {
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #00b894, #00a085);
+      color: white;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 184, 148, 0.4);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn.saved {
+      background: linear-gradient(135deg, #27ae60, #219a52);
+    }
+
+    .api-note {
+      font-size: 11px;
+      opacity: 0.6;
+      margin-top: 8px;
+      text-align: center;
+    }
+
+    .api-note a {
+      color: #00b894;
+      text-decoration: none;
+    }
+
+    .api-note a:hover {
+      text-decoration: underline;
+    }
+
+    .footer {
+      text-align: center;
+      font-size: 11px;
+      opacity: 0.5;
+      margin-top: 10px;
+    }
+
+    .highlight {
+      background: rgba(0, 184, 148, 0.3);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+
+    .kbd {
+      background: rgba(255, 255, 255, 0.2);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Traductor Universal</h1>
+    <p>Lee el mundo en tu idioma</p>
+  </div>
+
+  <div class="status">
+    <div class="status-dot"></div>
+    <span>Activo en Twitter/X</span>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Como funciona</div>
+    <div class="how-it-works">
+      <h3>LECTURA (automatico)</h3>
+      <p>Todos los tweets se traducen automaticamente al espanol. Veras un icono <span class="highlight">🌐</span> para ver el texto original.</p>
+
+      <h3>ESCRITURA (tus respuestas)</h3>
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text">Escribe tu respuesta en espanol</div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text">Pulsa el boton <span class="highlight">🌐</span> verde junto a "Postear"</div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text">Pulsa <span class="kbd">Ctrl+V</span> para pegar la traduccion</div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-text">Pulsa "Postear" o "Responder" para enviar</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">API Key de DeepSeek</div>
+    <div class="input-row">
+      <label for="apiKey">Tu clave de API:</label>
+      <input type="password" id="apiKey" placeholder="sk-xxxxxxxxxxxxxxxxxxxx">
+    </div>
+    <button class="btn" id="saveBtn">Guardar API Key</button>
+    <p class="api-note">
+      Obten tu API key gratis en <a href="https://platform.deepseek.com/" target="_blank">platform.deepseek.com</a>
+    </p>
+  </div>
+
+  <div class="footer">
+    v12.0 - Hecho para romper barreras
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

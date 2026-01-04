@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Generador de Iconos</title>
+  <style>
+    body { font-family: Arial; padding: 20px; background: #1a1a2e; color: white; }
+    canvas { border: 1px solid #333; margin: 10px; }
+    a { display: block; margin: 10px; color: #1da1f2; }
+    .container { display: flex; flex-wrap: wrap; gap: 20px; }
+    .icon-box { text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>Generador de Iconos PNG</h1>
+  <p>Haz clic derecho en cada imagen y "Guardar imagen como..." con el nombre indicado</p>
+  <div class="container">
+    <div class="icon-box">
+      <canvas id="icon16" width="16" height="16"></canvas>
+      <p>icon16.png</p>
+    </div>
+    <div class="icon-box">
+      <canvas id="icon48" width="48" height="48"></canvas>
+      <p>icon48.png</p>
+    </div>
+    <div class="icon-box">
+      <canvas id="icon128" width="128" height="128"></canvas>
+      <p>icon128.png</p>
+    </div>
+  </div>
+
+  <script>
+    function drawIcon(canvasId, size) {
+      const canvas = document.getElementById(canvasId);
+      const ctx = canvas.getContext('2d');
+
+      // Gradiente de fondo
+      const gradient = ctx.createLinearGradient(0, 0, size, size);
+      gradient.addColorStop(0, '#1da1f2');
+      gradient.addColorStop(1, '#0d8bd9');
+
+      // Círculo
+      ctx.beginPath();
+      ctx.arc(size/2, size/2, size/2 - 1, 0, Math.PI * 2);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      // Letra A
+      ctx.fillStyle = 'white';
+      ctx.font = `bold ${size * 0.5}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('A', size/2, size/2 + size * 0.05);
+
+      // Arco decorativo
+      if (size >= 48) {
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+        ctx.lineWidth = size / 24;
+        ctx.arc(size/2, size/2, size * 0.35, Math.PI * 1.2, Math.PI * 1.8);
+        ctx.stroke();
+      }
+    }
+
+    drawIcon('icon16', 16);
+    drawIcon('icon48', 48);
+    drawIcon('icon128', 128);
+
+    // Descargar automáticamente
+    function downloadCanvas(canvasId, filename) {
+      const canvas = document.getElementById(canvasId);
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+
+    // Botones de descarga
+    document.querySelectorAll('.icon-box').forEach(box => {
+      const canvas = box.querySelector('canvas');
+      const name = box.querySelector('p').textContent;
+      const btn = document.createElement('button');
+      btn.textContent = 'Descargar';
+      btn.style.cssText = 'margin-top: 5px; padding: 5px 15px; cursor: pointer;';
+      btn.onclick = () => downloadCanvas(canvas.id, name);
+      box.appendChild(btn);
+    });
+  </script>
+</body>
+</html>
