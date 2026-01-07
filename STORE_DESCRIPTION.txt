@@ -1,0 +1,52 @@
+SHORT DESCRIPTION (132 chars max):
+Auto-translate Twitter/X tweets to your language and your replies to the original language. Powered by AI.
+
+---
+
+DETAILED DESCRIPTION:
+
+🌐 Universal Translator for Twitter/X
+
+Break language barriers on Twitter! This extension automatically translates tweets to your language and translates your replies back to the original tweet's language.
+
+✨ FEATURES
+
+📖 AUTOMATIC READING
+• All tweets are instantly translated to your chosen language
+• Click the 🌐 icon to see the original text
+• Smart caching to save API calls
+
+✍️ SMART WRITING
+• Write replies in your native language
+• Stop typing for 1.5 seconds and watch the magic happen
+• Your text is automatically translated to match the tweet's language
+• Review the translation before sending
+• Keep editing - it translates again when you change your text
+
+🌍 SUPPORTED LANGUAGES
+• English, Spanish, French, German, Portuguese
+• Italian, Japanese, Chinese, Korean
+• Arabic, Russian
+
+⚡ HOW IT WORKS
+1. Install the extension
+2. Get a free API key from DeepSeek (platform.deepseek.com)
+3. Click the extension icon and configure your language + API key
+4. Browse Twitter normally - everything is translated!
+5. Reply in your language - it's automatically translated
+
+🔒 PRIVACY
+• Your API key is stored locally
+• No data collected or tracked
+• Only communicates with DeepSeek for translations
+
+💡 TIPS
+• Works on twitter.com and x.com
+• Translations are cached to minimize API usage
+• DeepSeek offers a generous free tier
+
+---
+
+CATEGORY: Productivity
+
+TAGS: translator, twitter, x, translation, language, multilingual, deepseek, ai

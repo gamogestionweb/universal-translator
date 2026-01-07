@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 1280px;
+      height: 800px;
+      background: linear-gradient(135deg, #0f3460 0%, #16213e 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 60px;
+      color: white;
+      padding: 40px;
+    }
+    .demo {
+      background: #15202b;
+      border-radius: 20px;
+      padding: 30px;
+      width: 500px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    .tweet {
+      margin-bottom: 25px;
+    }
+    .tweet-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .avatar {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      border-radius: 50%;
+    }
+    .name {
+      font-weight: 700;
+      font-size: 16px;
+    }
+    .handle {
+      color: #8899a6;
+      font-size: 14px;
+    }
+    .tweet-text {
+      font-size: 18px;
+      line-height: 1.5;
+      margin-bottom: 15px;
+    }
+    .original {
+      color: #8899a6;
+      font-size: 14px;
+      padding: 10px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 10px;
+      margin-top: 10px;
+    }
+    .original-label {
+      color: #00b894;
+      font-size: 12px;
+      margin-bottom: 5px;
+    }
+    .globe {
+      opacity: 0.5;
+      cursor: pointer;
+    }
+    .arrow {
+      font-size: 60px;
+      color: #00b894;
+    }
+    .info {
+      text-align: center;
+      max-width: 400px;
+    }
+    .info h2 {
+      font-size: 36px;
+      margin-bottom: 20px;
+    }
+    .info p {
+      font-size: 20px;
+      opacity: 0.8;
+      line-height: 1.6;
+    }
+    .step {
+      background: rgba(0,184,148,0.2);
+      padding: 15px 25px;
+      border-radius: 30px;
+      margin-top: 30px;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <div class="demo">
+    <div class="tweet">
+      <div class="tweet-header">
+        <div class="avatar"></div>
+        <div>
+          <div class="name">John Smith</div>
+          <div class="handle">@johnsmith · 2h</div>
+        </div>
+      </div>
+      <div class="tweet-text">
+        ¡Esta nueva función de IA es increíble! La he probado y funciona perfectamente. <span class="globe">🌐</span>
+      </div>
+      <div class="original">
+        <div class="original-label">Original (English):</div>
+        This new AI feature is amazing! I tried it and it works perfectly.
+      </div>
+    </div>
+  </div>
+
+  <div class="info">
+    <h2>📖 Auto-Translate</h2>
+    <p>Every tweet is automatically translated to your language. Click 🌐 to see the original.</p>
+    <div class="step">No buttons to click. It just works!</div>
+  </div>
+</body>
+</html>
