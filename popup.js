@@ -1,55 +1,61 @@
-// Popup Script para Traductor Universal v12.0
+// Universal Translator - Popup Script v16.0
 
 document.addEventListener('DOMContentLoaded', () => {
   const apiKeyInput = document.getElementById('apiKey');
+  const myLanguageSelect = document.getElementById('myLanguage');
   const saveBtn = document.getElementById('saveBtn');
 
-  // Cargar API key guardada
-  chrome.storage.sync.get(['deepseekApiKey'], (result) => {
+  // Load saved settings
+  chrome.storage.sync.get(['deepseekApiKey', 'myLanguage'], (result) => {
     if (result.deepseekApiKey) {
-      // Mostrar solo los ultimos 8 caracteres
-      const key = result.deepseekApiKey;
-      apiKeyInput.value = key;
+      apiKeyInput.value = result.deepseekApiKey;
       apiKeyInput.type = 'password';
+    }
+    if (result.myLanguage) {
+      myLanguageSelect.value = result.myLanguage;
     }
   });
 
-  // Guardar API key
+  // Save settings
   saveBtn.addEventListener('click', () => {
     const apiKey = apiKeyInput.value.trim();
+    const myLanguage = myLanguageSelect.value;
 
     if (!apiKey) {
-      saveBtn.textContent = 'Introduce una API key';
+      saveBtn.textContent = 'Enter an API key';
       saveBtn.style.background = '#e74c3c';
       setTimeout(() => {
-        saveBtn.textContent = 'Guardar API Key';
+        saveBtn.textContent = 'Save Settings';
         saveBtn.style.background = '';
       }, 2000);
       return;
     }
 
     if (!apiKey.startsWith('sk-')) {
-      saveBtn.textContent = 'La key debe empezar con sk-';
+      saveBtn.textContent = 'Key must start with sk-';
       saveBtn.style.background = '#e74c3c';
       setTimeout(() => {
-        saveBtn.textContent = 'Guardar API Key';
+        saveBtn.textContent = 'Save Settings';
         saveBtn.style.background = '';
       }, 2000);
       return;
     }
 
-    chrome.storage.sync.set({ deepseekApiKey: apiKey }, () => {
-      saveBtn.textContent = 'Guardado!';
+    chrome.storage.sync.set({
+      deepseekApiKey: apiKey,
+      myLanguage: myLanguage
+    }, () => {
+      saveBtn.textContent = 'Saved!';
       saveBtn.classList.add('saved');
 
       setTimeout(() => {
-        saveBtn.textContent = 'Guardar API Key';
+        saveBtn.textContent = 'Save Settings';
         saveBtn.classList.remove('saved');
       }, 2000);
     });
   });
 
-  // Mostrar/ocultar API key al hacer clic
+  // Show/hide API key on click
   apiKeyInput.addEventListener('click', () => {
     if (apiKeyInput.type === 'password') {
       apiKeyInput.type = 'text';

@@ -5,22 +5,20 @@ A browser extension that automatically translates all Twitter/X content to your 
 ## Features
 
 ### READING (automatic)
-- All tweets are automatically translated to Spanish
+- All tweets are automatically translated to your chosen language
 - Detects the original language of each tweet
 - Click the 🌐 icon to see the original text
 
 ### WRITING (your replies)
-1. Write your reply in Spanish
-2. Click the green 🌐 button next to "Post"
-3. Press `Ctrl+V` to paste the translation
-4. Click "Post" or "Reply" to send
-
-Your reply is automatically translated to the original tweet's language.
+1. Write your reply in your language
+2. Stop typing for 1.5 seconds
+3. Your text is automatically translated to the tweet's language
+4. Review the translation and click "Reply" to send
 
 ## Supported Languages
 
-- Spanish
 - English
+- Spanish
 - French
 - German
 - Portuguese
@@ -33,24 +31,36 @@ Your reply is automatically translated to the original tweet's language.
 
 ## Installation
 
-### Edge / Chrome
+### From Chrome Web Store
+*(Coming soon)*
+
+### Manual Installation (Edge / Chrome)
 
 1. Download or clone this repository
 2. Go to `edge://extensions/` or `chrome://extensions/`
 3. Enable "Developer mode" (top right corner)
 4. Click "Load unpacked"
-5. Select the `traductor` folder
+5. Select the extension folder
 
 ### Configure API Key
 
 1. Get a free API key at [platform.deepseek.com](https://platform.deepseek.com/)
-2. Click on the extension icon
-3. Enter your API key and click "Save"
+2. Click on the extension icon in your browser
+3. Select your language
+4. Enter your API key and click "Save Settings"
+
+## How It Works
+
+1. **Language Detection**: Analyzes text to detect language using character patterns and common words
+2. **AI Translation**: Uses DeepSeek API (deepseek-chat model) for high-quality translations
+3. **Smart Cache**: Stores translations to avoid repeated API calls
+4. **DOM Observer**: Automatically detects new tweets when scrolling
+5. **Auto-translate**: When you stop typing for 1.5 seconds, your reply is translated
 
 ## Project Structure
 
 ```
-traductor/
+universal-translator/
 ├── manifest.json      # Extension configuration
 ├── content.js         # Main script (translation logic)
 ├── popup.html         # Popup interface
@@ -63,13 +73,6 @@ traductor/
     └── icon128.png
 ```
 
-## How It Works
-
-1. **Language Detection**: Analyzes text to detect language using common word patterns and specific characters
-2. **AI Translation**: Uses DeepSeek API (deepseek-chat model) for high-quality translations
-3. **Smart Cache**: Stores translations to avoid repeated API calls
-4. **DOM Observer**: Automatically detects new tweets when scrolling
-
 ## Technologies
 
 - Vanilla JavaScript
@@ -77,11 +80,17 @@ traductor/
 - DeepSeek API
 - MutationObserver for DOM changes
 
+## Privacy
+
+- Your API key is stored locally in your browser
+- No data is sent to any server except DeepSeek for translation
+- No analytics or tracking
+
 ## Notes
 
 - The extension only works on twitter.com and x.com
 - You need a DeepSeek API key (has a free tier)
-- Translations are cached to save API calls
+- Translations are cached locally to save API calls
 
 ## License
 

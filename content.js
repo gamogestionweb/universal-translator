@@ -1,32 +1,99 @@
-// Traductor Universal - Content Script para Twitter/X
-// v13.0 - Botón bonito al lado de Postear/Responder
+// Universal Translator - Content Script for Twitter/X
+// v16.0 - Multi-language support
 (function() {
   'use strict';
 
-  // Cargar API key desde storage
+  // Load settings from storage
   let DEEPSEEK_API_KEY = '';
+  let MY_LANGUAGE = 'spanish'; // Default
 
-  chrome.storage.sync.get(['deepseekApiKey'], (result) => {
+  chrome.storage.sync.get(['deepseekApiKey', 'myLanguage'], (result) => {
     if (result.deepseekApiKey) {
       DEEPSEEK_API_KEY = result.deepseekApiKey;
     }
+    if (result.myLanguage) {
+      MY_LANGUAGE = result.myLanguage;
+    }
+    console.log(`🌐 Universal Translator v16.0 - Language: ${MY_LANGUAGE}`);
   });
 
   const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
 
   const cache = new Map();
   const procesados = new WeakSet();
+  let ultimoTextoOriginal = '';  // Last text in MY language before translation
+  let ultimoTextoTraducido = ''; // Last translated text
+  let timerTraduccion = null;
 
-  // ============ TRADUCCIÓN ============
-  async function traducir(texto, idioma) {
-    if (!texto || texto.trim().length < 3) return texto;
+  // Language detection patterns
+  const LANGUAGE_PATTERNS = {
+    spanish: {
+      chars: /[áéíóúñ¿¡]/,
+      words: /\b(está|qué|cómo|también|después|aquí|siempre|nunca|aunque|porque|entonces|pero|ahora|mucho|muy|hola|gracias|bueno|bien|esto|esta|este|eso|esa|ese|para|como|cuando|donde|quien|todo|nada|algo|alguien|nadie|ser|estar|tener|hacer|decir|poder|querer|saber|deber|espectacular|increíble|genial|bonito|hermoso)\b/i,
+      common: /\b(es|son|hay|tiene|hace|dice|puede|quiere|sabe|debe|parece|creo|pienso|mira|oye|vale|venga|vamos|claro|seguro|verdad|cierto|igual|casi|solo|ya|asi|ahi|aqui|alla|luego|antes|todavia|aun|sin|sobre|entre|hasta|desde)\b/i
+    },
+    english: {
+      chars: null,
+      words: /\b(the|is|are|was|were|have|has|had|will|would|could|should|this|that|these|those|with|from|they|what|when|where|which|who|whom|whose|why|how|been|being|do|does|did|done|make|made|can|may|might|must|shall)\b/i,
+      common: /\b(I|you|he|she|it|we|they|my|your|his|her|its|our|their|me|him|us|them|and|but|or|so|if|then|than|very|just|only|also|even|still|already|never|always|often|sometimes)\b/i
+    },
+    french: {
+      chars: /[àâäéèêëïîôùûüÿœæç]/,
+      words: /\b(le|la|les|un|une|des|est|sont|dans|pour|avec|vous|nous|mais|très|être|avoir|faire|dire|aller|voir|savoir|pouvoir|vouloir|venir|prendre|parler|aimer|donner|trouver)\b/i,
+      common: /\b(je|tu|il|elle|on|ce|qui|que|quoi|où|quand|comment|pourquoi|bien|mal|peu|beaucoup|tout|rien|jamais|toujours|encore|déjà|aussi|même|autre|chaque)\b/i
+    },
+    german: {
+      chars: /[äöüß]/,
+      words: /\b(der|die|das|und|ist|ein|eine|für|mit|auf|nicht|auch|haben|werden|sein|können|müssen|sollen|wollen|dürfen|machen|gehen|kommen|sehen|geben|nehmen|finden|denken|sagen)\b/i,
+      common: /\b(ich|du|er|sie|es|wir|ihr|mein|dein|sein|ihr|unser|euer|aber|oder|wenn|weil|dass|sehr|nur|noch|schon|immer|nie|oft|manchmal|wieder|zusammen)\b/i
+    },
+    portuguese: {
+      chars: /[áàâãéêíóôõúç]/,
+      words: /\b(o|a|os|as|um|uma|do|da|em|no|na|não|muito|também|você|isso|ter|ser|estar|fazer|dizer|ir|ver|saber|poder|querer|vir|dar|ficar|deixar|parecer)\b/i,
+      common: /\b(eu|tu|ele|ela|nós|eles|elas|meu|teu|seu|nosso|mas|ou|se|quando|onde|como|porque|bem|mal|pouco|tudo|nada|nunca|sempre|ainda|já|só|mais|menos)\b/i
+    },
+    italian: {
+      chars: /[àèéìíîòóùú]/,
+      words: /\b(il|lo|la|i|gli|le|un|uno|una|di|da|in|con|su|per|non|che|sono|essere|avere|fare|dire|andare|vedere|sapere|potere|volere|venire|dare|stare|trovare)\b/i,
+      common: /\b(io|tu|lui|lei|noi|voi|loro|mio|tuo|suo|nostro|vostro|ma|o|se|quando|dove|come|perché|bene|male|poco|molto|tutto|niente|mai|sempre|ancora|già|solo|anche)\b/i
+    },
+    japanese: {
+      chars: /[\u3040-\u309F\u30A0-\u30FF]/,
+      words: null,
+      common: null
+    },
+    chinese: {
+      chars: /[\u4E00-\u9FFF]/,
+      words: null,
+      common: null
+    },
+    korean: {
+      chars: /[\uAC00-\uD7AF]/,
+      words: null,
+      common: null
+    },
+    arabic: {
+      chars: /[\u0600-\u06FF]/,
+      words: null,
+      common: null
+    },
+    russian: {
+      chars: /[\u0400-\u04FF]/,
+      words: null,
+      common: null
+    }
+  };
+
+  // ============ TRANSLATION ============
+  async function translate(text, targetLanguage) {
+    if (!text || text.trim().length < 3) return text;
 
     if (!DEEPSEEK_API_KEY) {
-      console.error('🌐 Traductor: No hay API key configurada. Ve al popup de la extensión para añadirla.');
-      return texto;
+      console.error('🌐 Translator: No API key configured. Go to the extension popup to add it.');
+      return text;
     }
 
-    const cacheKey = texto.trim() + '_' + idioma;
+    const cacheKey = text.trim() + '_' + targetLanguage;
     if (cache.has(cacheKey)) return cache.get(cacheKey);
 
     const res = await fetch(DEEPSEEK_API_URL, {
@@ -38,8 +105,19 @@
       body: JSON.stringify({
         model: 'deepseek-chat',
         messages: [
-          { role: 'system', content: `Traduce al ${idioma}. Solo devuelve la traducción, nada más. Mantén emojis, @menciones y #hashtags sin traducir.` },
-          { role: 'user', content: texto }
+          {
+            role: 'system',
+            content: `You are a translator. Your ONLY function is to translate text to ${targetLanguage}.
+STRICT RULES:
+- ONLY return the translation, NOTHING else
+- DO NOT answer questions
+- DO NOT add explanations
+- DO NOT add comments
+- If the text is a question, translate the question, DO NOT answer it
+- Keep emojis, @mentions and #hashtags exactly as they are
+- If the text is already in ${targetLanguage}, return it unchanged`
+          },
+          { role: 'user', content: text }
         ],
         temperature: 0.1,
         max_tokens: 500
@@ -47,223 +125,196 @@
     });
 
     const data = await res.json();
-    const traducido = data.choices?.[0]?.message?.content?.trim() || texto;
-    cache.set(cacheKey, traducido);
-    return traducido;
+    const translated = data.choices?.[0]?.message?.content?.trim() || text;
+    cache.set(cacheKey, translated);
+    return translated;
   }
 
-  // ============ DETECTAR IDIOMA ============
-  function esEspanol(texto) {
-    if (/[áéíóúñ¿¡]/.test(texto)) return true;
-    if (/\b(está|qué|cómo|también|después|aquí|siempre|nunca|aunque|porque|entonces|pero|ahora|mucho|muy|hola|gracias|bueno|bien)\b/i.test(texto)) return true;
+  // ============ LANGUAGE DETECTION ============
+  function isLanguage(text, lang) {
+    const pattern = LANGUAGE_PATTERNS[lang];
+    if (!pattern) return false;
+
+    if (pattern.chars && pattern.chars.test(text)) return true;
+    if (pattern.words && pattern.words.test(text)) return true;
+    if (pattern.common && pattern.common.test(text)) return true;
+
     return false;
   }
 
-  function detectarIdioma(texto) {
-    if (esEspanol(texto)) return 'español';
-    if (/\b(the|is|are|was|have|will|this|that|with|from|they|what|when|where|would|could|should)\b/gi.test(texto)) return 'inglés';
-    if (/\b(le|la|les|est|sont|dans|pour|avec|vous|nous|mais|très|être)\b/gi.test(texto)) return 'francés';
-    if (/\b(der|die|das|und|ist|ein|eine|für|mit|auf|nicht|auch)\b/gi.test(texto)) return 'alemán';
-    if (/\b(do|da|em|no|na|não|muito|também|você|isso)\b/gi.test(texto)) return 'portugués';
-    if (/\b(il|la|che|di|non|per|sono|questo|una|con)\b/gi.test(texto)) return 'italiano';
-    if (/[\u3040-\u309F\u30A0-\u30FF]/.test(texto)) return 'japonés';
-    if (/[\u4E00-\u9FFF]/.test(texto)) return 'chino';
-    if (/[\uAC00-\uD7AF]/.test(texto)) return 'coreano';
-    if (/[\u0600-\u06FF]/.test(texto)) return 'árabe';
-    if (/[\u0400-\u04FF]/.test(texto)) return 'ruso';
-    return 'inglés';
+  function isMyLanguage(text) {
+    return isLanguage(text, MY_LANGUAGE);
   }
 
-  // ============ LECTURA: Traducir tweets al español ============
-  async function procesarTweet(tweet) {
-    const textoEl = tweet.querySelector('[data-testid="tweetText"]');
-    if (!textoEl) return;
+  function detectLanguage(text) {
+    // Check each language
+    for (const [lang, pattern] of Object.entries(LANGUAGE_PATTERNS)) {
+      if (pattern.chars && pattern.chars.test(text)) return lang;
+    }
 
-    const texto = textoEl.textContent.trim();
-    if (texto.length < 5 || esEspanol(texto)) return;
+    // Check word patterns
+    for (const [lang, pattern] of Object.entries(LANGUAGE_PATTERNS)) {
+      if (pattern.words && pattern.words.test(text)) return lang;
+    }
 
-    textoEl.dataset.original = textoEl.innerHTML;
-    textoEl.dataset.idiomaOriginal = detectarIdioma(texto);
+    return 'english'; // Default fallback
+  }
 
-    const traducido = await traducir(texto, 'español');
+  // ============ READING: Translate tweets to my language ============
+  async function processTweet(tweet) {
+    const textEl = tweet.querySelector('[data-testid="tweetText"]');
+    if (!textEl) return;
 
-    if (traducido !== texto) {
-      textoEl.innerHTML = traducido + ' <span class="trad-icon" style="opacity:0.5;cursor:pointer" title="Ver original">🌐</span>';
-      textoEl.dataset.traducido = traducido;
+    const text = textEl.textContent.trim();
+    if (text.length < 5 || isMyLanguage(text)) return;
 
-      textoEl.querySelector('.trad-icon').onclick = (e) => {
+    textEl.dataset.original = textEl.innerHTML;
+    textEl.dataset.originalLanguage = detectLanguage(text);
+
+    const translated = await translate(text, MY_LANGUAGE);
+
+    if (translated !== text) {
+      textEl.innerHTML = translated + ' <span class="trad-icon" style="opacity:0.5;cursor:pointer" title="Show original">🌐</span>';
+      textEl.dataset.translated = translated;
+
+      textEl.querySelector('.trad-icon').onclick = (e) => {
         e.stopPropagation();
-        if (textoEl.dataset.mostrandoOriginal === 'true') {
-          textoEl.innerHTML = textoEl.dataset.traducido + ' <span class="trad-icon" style="opacity:0.5;cursor:pointer">🌐</span>';
-          textoEl.dataset.mostrandoOriginal = 'false';
+        if (textEl.dataset.showingOriginal === 'true') {
+          textEl.innerHTML = textEl.dataset.translated + ' <span class="trad-icon" style="opacity:0.5;cursor:pointer">🌐</span>';
+          textEl.dataset.showingOriginal = 'false';
         } else {
-          textoEl.innerHTML = textoEl.dataset.original + ' <span class="trad-icon" style="opacity:0.5;cursor:pointer">🔄</span>';
-          textoEl.dataset.mostrandoOriginal = 'true';
+          textEl.innerHTML = textEl.dataset.original + ' <span class="trad-icon" style="opacity:0.5;cursor:pointer">🔄</span>';
+          textEl.dataset.showingOriginal = 'true';
         }
-        textoEl.querySelector('.trad-icon').onclick = arguments.callee;
+        textEl.querySelector('.trad-icon').onclick = arguments.callee;
       };
     }
   }
 
-  async function escanearTweets() {
+  async function scanTweets() {
     const tweets = document.querySelectorAll('[data-testid="tweet"]');
-    const nuevos = [];
+    const newTweets = [];
     tweets.forEach(t => {
       if (!procesados.has(t)) {
         procesados.add(t);
-        nuevos.push(t);
+        newTweets.push(t);
       }
     });
-    if (nuevos.length) await Promise.all(nuevos.map(procesarTweet));
+    if (newTweets.length) await Promise.all(newTweets.map(processTweet));
   }
 
-  // ============ ESCRITURA: Botón junto a Postear/Responder ============
-  function insertarBotonTraducir() {
-    // Buscar todos los botones de envío de Twitter
-    const botonesTwitter = document.querySelectorAll('[data-testid="tweetButton"], [data-testid="tweetButtonInline"]');
+  // ============ WRITING: Auto-translate when you stop typing ============
+  function getEditorText() {
+    const editor = document.querySelector('[data-testid="tweetTextarea_0"]') ||
+                   document.querySelector('[data-testid="tweetTextarea_1"]');
+    if (!editor) return null;
 
-    botonesTwitter.forEach(botonTwitter => {
-      // Verificar si ya tiene nuestro botón
-      const contenedor = botonTwitter.closest('div');
-      if (!contenedor) return;
-      if (contenedor.querySelector('.btn-traducir-universal')) return;
-
-      // Crear nuestro botón con el mismo estilo que el de Twitter
-      const miBoton = document.createElement('div');
-      miBoton.className = 'btn-traducir-universal';
-      miBoton.innerHTML = '🌐';
-      miBoton.title = 'Traducir y copiar (luego Ctrl+V)';
-      miBoton.style.cssText = `
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 36px;
-        min-height: 36px;
-        padding: 0 16px;
-        margin-right: 12px;
-        background: #00b894;
-        color: white;
-        border: none;
-        border-radius: 9999px;
-        cursor: pointer;
-        font-size: 16px;
-        font-weight: 700;
-        transition: all 0.2s ease;
-        user-select: none;
-        vertical-align: middle;
-      `;
-
-      miBoton.onmouseenter = () => {
-        miBoton.style.background = '#00a085';
-        miBoton.style.transform = 'scale(1.05)';
-      };
-      miBoton.onmouseleave = () => {
-        miBoton.style.background = '#00b894';
-        miBoton.style.transform = 'scale(1)';
-      };
-
-      miBoton.onclick = async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-
-        // Buscar el editor de texto
-        const editor = document.querySelector('[data-testid="tweetTextarea_0"]') ||
-                       document.querySelector('[data-testid="tweetTextarea_1"]') ||
-                       document.querySelector('[contenteditable="true"][data-testid]') ||
-                       document.querySelector('.public-DraftEditor-content');
-
-        if (!editor) {
-          console.log('No encontré editor');
-          return;
-        }
-
-        // Obtener el texto del editor
-        const span = editor.querySelector('[data-text="true"]');
-        const miTexto = span?.textContent?.trim() || editor.textContent?.trim();
-
-        if (!miTexto || miTexto.length < 2) {
-          miBoton.innerHTML = '✏️';
-          miBoton.title = 'Escribe algo primero';
-          setTimeout(() => {
-            miBoton.innerHTML = '🌐';
-            miBoton.title = 'Traducir y copiar (luego Ctrl+V)';
-          }, 1500);
-          return;
-        }
-
-        // Detectar idioma del tweet al que respondemos
-        let idiomaDestino = 'inglés';
-
-        // Buscar el tweet más cercano con idioma detectado
-        const tweetsConIdioma = document.querySelectorAll('[data-testid="tweetText"][data-idioma-original]');
-        if (tweetsConIdioma.length > 0) {
-          idiomaDestino = tweetsConIdioma[tweetsConIdioma.length - 1].dataset.idiomaOriginal;
-        }
-
-        // Si ya está en español y el destino es español, avisar
-        if (esEspanol(miTexto) && idiomaDestino === 'español') {
-          miBoton.innerHTML = '✅';
-          miBoton.title = 'Ya está en español';
-          setTimeout(() => {
-            miBoton.innerHTML = '🌐';
-            miBoton.title = 'Traducir y copiar (luego Ctrl+V)';
-          }, 1500);
-          return;
-        }
-
-        // Mostrar estado de carga
-        miBoton.innerHTML = '⏳';
-        miBoton.style.background = '#f39c12';
-
-        try {
-          const traducido = await traducir(miTexto, idiomaDestino);
-          console.log(`🌐 Traducido: "${miTexto}" → "${traducido}" (${idiomaDestino})`);
-
-          // Copiar al portapapeles
-          await navigator.clipboard.writeText(traducido);
-
-          // Éxito
-          miBoton.innerHTML = '✅';
-          miBoton.style.background = '#27ae60';
-          miBoton.title = '¡Copiado! Pulsa Ctrl+V';
-
-        } catch (err) {
-          console.error('Error:', err);
-          miBoton.innerHTML = '❌';
-          miBoton.style.background = '#e74c3c';
-          miBoton.title = 'Error al traducir';
-        }
-
-        // Restaurar después de 3 segundos
-        setTimeout(() => {
-          miBoton.innerHTML = '🌐';
-          miBoton.style.background = '#00b894';
-          miBoton.title = 'Traducir y copiar (luego Ctrl+V)';
-        }, 3000);
-      };
-
-      // Insertar ANTES del botón de Twitter (Postear/Responder)
-      botonTwitter.parentElement.insertBefore(miBoton, botonTwitter);
-    });
+    const span = editor.querySelector('[data-text="true"]');
+    return span?.textContent?.trim() || editor.textContent?.trim() || '';
   }
 
-  // ============ INICIAR ============
+  function insertTextInEditor(text) {
+    const editor = document.querySelector('[data-testid="tweetTextarea_0"]') ||
+                   document.querySelector('[data-testid="tweetTextarea_1"]');
+    if (!editor) return false;
+
+    const editable = editor.querySelector('[contenteditable="true"]') ||
+                     editor.closest('[contenteditable="true"]');
+    if (!editable) return false;
+
+    editable.focus();
+
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editable);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    document.execCommand('insertText', false, text);
+    editable.dispatchEvent(new InputEvent('input', { bubbles: true, data: text }));
+
+    return true;
+  }
+
+  async function autoTranslateEditor() {
+    const currentText = getEditorText();
+
+    if (!currentText || currentText.length < 3) return;
+
+    // If text is the same as last translation, user hasn't changed anything
+    if (currentText === ultimoTextoTraducido) return;
+
+    // If text is in my language, it's new input - translate it
+    if (isMyLanguage(currentText)) {
+      // Don't re-translate if it's the same original text
+      if (currentText === ultimoTextoOriginal) return;
+
+      // Find target language from tweet being replied to
+      let targetLanguage = null;
+      const tweetsWithLang = document.querySelectorAll('[data-testid="tweetText"][data-original-language]');
+      if (tweetsWithLang.length > 0) {
+        targetLanguage = tweetsWithLang[tweetsWithLang.length - 1].dataset.originalLanguage;
+      }
+
+      // If no target language found or it's my language, don't translate
+      if (!targetLanguage || targetLanguage === MY_LANGUAGE) {
+        console.log('🌐 No translation needed - same language or no target');
+        return;
+      }
+
+      console.log(`🌐 Auto-translating: "${currentText}" → ${targetLanguage}`);
+
+      try {
+        const translated = await translate(currentText, targetLanguage);
+
+        if (translated && translated !== currentText) {
+          console.log(`🌐 Translated: "${translated}"`);
+          ultimoTextoOriginal = currentText;
+          ultimoTextoTraducido = translated;
+          insertTextInEditor(translated);
+        }
+      } catch (err) {
+        console.error('Error auto-translating:', err);
+      }
+    }
+    // If text is NOT in my language, user is editing the translation - leave it alone
+  }
+
+  function setupAutoTranslation() {
+    document.addEventListener('input', (e) => {
+      const editor = e.target.closest('[data-testid="tweetTextarea_0"], [data-testid="tweetTextarea_1"]') ||
+                     e.target.closest('[contenteditable="true"]');
+
+      if (!editor) return;
+
+      const text = getEditorText();
+      console.log('🌐 Input detected:', text);
+
+      if (timerTraduccion) {
+        clearTimeout(timerTraduccion);
+      }
+
+      timerTraduccion = setTimeout(() => {
+        console.log('🌐 Timer complete, attempting translation...');
+        autoTranslateEditor();
+      }, 1500);
+
+    }, true);
+  }
+
+  // ============ START ============
   const observer = new MutationObserver(() => {
     clearTimeout(window._trad);
     window._trad = setTimeout(() => {
-      escanearTweets();
-      insertarBotonTraducir();
+      scanTweets();
     }, 200);
   });
 
   observer.observe(document.body, { childList: true, subtree: true });
 
-  // Ejecutar al inicio
   setTimeout(() => {
-    escanearTweets();
-    insertarBotonTraducir();
+    scanTweets();
+    setupAutoTranslation();
   }, 500);
-
-  console.log('🌐 Traductor Universal v13.0 - Activo');
 
 })();

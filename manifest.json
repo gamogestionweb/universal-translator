@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Traductor Universal",
+  "name": "Universal Translator for Twitter/X",
   "version": "1.0.0",
-  "description": "Traduce automáticamente todo al español y tus respuestas al idioma del destinatario",
+  "description": "Automatically translates tweets to your language and your replies to the tweet's language",
   "permissions": [
     "storage",
     "activeTab"
