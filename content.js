@@ -1,5 +1,5 @@
 // Universal Translator - Content Script for Twitter/X
-// v16.0 - Multi-language support
+// v17.0 - Improved writing experience
 (function() {
   'use strict';
 
@@ -14,16 +14,22 @@
     if (result.myLanguage) {
       MY_LANGUAGE = result.myLanguage;
     }
-    console.log(`🌐 Universal Translator v16.0 - Language: ${MY_LANGUAGE}`);
+    console.log(`🌐 Universal Translator v17.0 - Language: ${MY_LANGUAGE}`);
   });
 
   const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
+
+  // Configuration
+  const TRANSLATION_DELAY_MS = 3000; // 3 seconds - more time to type
+  const MIN_TEXT_LENGTH = 5; // Minimum characters before translating
 
   const cache = new Map();
   const procesados = new WeakSet();
   let ultimoTextoOriginal = '';  // Last text in MY language before translation
   let ultimoTextoTraducido = ''; // Last translated text
   let timerTraduccion = null;
+  let isTranslating = false; // Flag to prevent overlapping translations
+  let lastInputTime = 0; // Track when user last typed
 
   // Language detection patterns
   const LANGUAGE_PATTERNS = {
@@ -131,6 +137,12 @@ STRICT RULES:
   }
 
   // ============ LANGUAGE DETECTION ============
+  function countMatches(text, regex) {
+    if (!regex) return 0;
+    const matches = text.match(new RegExp(regex.source, 'gi'));
+    return matches ? matches.length : 0;
+  }
+
   function isLanguage(text, lang) {
     const pattern = LANGUAGE_PATTERNS[lang];
     if (!pattern) return false;
@@ -147,17 +159,50 @@ STRICT RULES:
   }
 
   function detectLanguage(text) {
-    // Check each language
-    for (const [lang, pattern] of Object.entries(LANGUAGE_PATTERNS)) {
+    // First check for non-latin scripts (definitive)
+    const scriptLanguages = ['japanese', 'chinese', 'korean', 'arabic', 'russian'];
+    for (const lang of scriptLanguages) {
+      const pattern = LANGUAGE_PATTERNS[lang];
       if (pattern.chars && pattern.chars.test(text)) return lang;
     }
 
-    // Check word patterns
-    for (const [lang, pattern] of Object.entries(LANGUAGE_PATTERNS)) {
-      if (pattern.words && pattern.words.test(text)) return lang;
+    // For latin-based languages, use scoring system
+    const latinLanguages = ['spanish', 'english', 'french', 'german', 'portuguese', 'italian'];
+    const scores = {};
+
+    for (const lang of latinLanguages) {
+      const pattern = LANGUAGE_PATTERNS[lang];
+      let score = 0;
+
+      // Unique characters are strong indicators (but not for english)
+      if (pattern.chars && pattern.chars.test(text)) {
+        score += 10;
+      }
+
+      // Count word matches
+      score += countMatches(text, pattern.words) * 2;
+      score += countMatches(text, pattern.common);
+
+      scores[lang] = score;
     }
 
-    return 'english'; // Default fallback
+    // Find the language with highest score
+    let bestLang = 'english';
+    let bestScore = scores['english'] || 0;
+
+    for (const [lang, score] of Object.entries(scores)) {
+      if (score > bestScore) {
+        bestScore = score;
+        bestLang = lang;
+      }
+    }
+
+    // If scores are very low, default to english
+    if (bestScore < 2) {
+      return 'english';
+    }
+
+    return bestLang;
   }
 
   // ============ READING: Translate tweets to my language ============
@@ -231,15 +276,44 @@ STRICT RULES:
     selection.addRange(range);
 
     document.execCommand('insertText', false, text);
-    editable.dispatchEvent(new InputEvent('input', { bubbles: true, data: text }));
 
     return true;
   }
 
+  // Find the main tweet we're replying to (the first one, not replies below)
+  function getMainTweetLanguage() {
+    // In a tweet detail view, the main tweet is usually the first one
+    const mainTweet = document.querySelector('[data-testid="tweet"] [data-testid="tweetText"][data-original-language]');
+    if (mainTweet) {
+      return mainTweet.dataset.originalLanguage;
+    }
+
+    // Fallback: look for "Respondiendo a" context and get the first tweet
+    const tweetsWithLang = document.querySelectorAll('[data-testid="tweetText"][data-original-language]');
+    if (tweetsWithLang.length > 0) {
+      // Take the FIRST one (main tweet), not the last
+      return tweetsWithLang[0].dataset.originalLanguage;
+    }
+
+    return null;
+  }
+
   async function autoTranslateEditor() {
+    // Check if user is still typing (typed in last 500ms)
+    if (Date.now() - lastInputTime < 500) {
+      console.log('🌐 User still typing, skipping...');
+      return;
+    }
+
+    // Prevent overlapping translations
+    if (isTranslating) {
+      console.log('🌐 Translation already in progress, skipping...');
+      return;
+    }
+
     const currentText = getEditorText();
 
-    if (!currentText || currentText.length < 3) return;
+    if (!currentText || currentText.length < MIN_TEXT_LENGTH) return;
 
     // If text is the same as last translation, user hasn't changed anything
     if (currentText === ultimoTextoTraducido) return;
@@ -249,12 +323,8 @@ STRICT RULES:
       // Don't re-translate if it's the same original text
       if (currentText === ultimoTextoOriginal) return;
 
-      // Find target language from tweet being replied to
-      let targetLanguage = null;
-      const tweetsWithLang = document.querySelectorAll('[data-testid="tweetText"][data-original-language]');
-      if (tweetsWithLang.length > 0) {
-        targetLanguage = tweetsWithLang[tweetsWithLang.length - 1].dataset.originalLanguage;
-      }
+      // Find target language from the MAIN tweet being replied to
+      const targetLanguage = getMainTweetLanguage();
 
       // If no target language found or it's my language, don't translate
       if (!targetLanguage || targetLanguage === MY_LANGUAGE) {
@@ -265,7 +335,16 @@ STRICT RULES:
       console.log(`🌐 Auto-translating: "${currentText}" → ${targetLanguage}`);
 
       try {
+        isTranslating = true;
         const translated = await translate(currentText, targetLanguage);
+
+        // Double-check user hasn't typed more while we were translating
+        const textAfterTranslation = getEditorText();
+        if (textAfterTranslation !== currentText) {
+          console.log('🌐 Text changed during translation, discarding result');
+          isTranslating = false;
+          return;
+        }
 
         if (translated && translated !== currentText) {
           console.log(`🌐 Translated: "${translated}"`);
@@ -275,9 +354,22 @@ STRICT RULES:
         }
       } catch (err) {
         console.error('Error auto-translating:', err);
+      } finally {
+        isTranslating = false;
       }
     }
     // If text is NOT in my language, user is editing the translation - leave it alone
+  }
+
+  // Reset state when editor is cleared or new reply starts
+  function resetTranslationState() {
+    ultimoTextoOriginal = '';
+    ultimoTextoTraducido = '';
+    isTranslating = false;
+    if (timerTraduccion) {
+      clearTimeout(timerTraduccion);
+      timerTraduccion = null;
+    }
   }
 
   function setupAutoTranslation() {
@@ -287,8 +379,14 @@ STRICT RULES:
 
       if (!editor) return;
 
+      lastInputTime = Date.now();
       const text = getEditorText();
-      console.log('🌐 Input detected:', text);
+
+      // If editor is empty, reset state
+      if (!text || text.length === 0) {
+        resetTranslationState();
+        return;
+      }
 
       if (timerTraduccion) {
         clearTimeout(timerTraduccion);
@@ -297,9 +395,17 @@ STRICT RULES:
       timerTraduccion = setTimeout(() => {
         console.log('🌐 Timer complete, attempting translation...');
         autoTranslateEditor();
-      }, 1500);
+      }, TRANSLATION_DELAY_MS);
 
     }, true);
+
+    // Also listen for when the reply modal closes to reset state
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('[data-testid="app-bar-close"]') ||
+          e.target.closest('[aria-label="Close"]')) {
+        resetTranslationState();
+      }
+    });
   }
 
   // ============ START ============
