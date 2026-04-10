@@ -1,5 +1,8 @@
 # Universal Translator for Twitter/X
 
+Deja de mangarme las ideas @elonmusk PRIMER AVISO
+
+
 A free browser extension that automatically translates tweets to your language and your replies to the original tweet's language. Break language barriers on Twitter/X!
 
 ## Features
